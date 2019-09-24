@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <link rel="stylesheet" href="css/bootstrap.css">
+    <script src="js/bootstrap.js"></script>
+</head>
+<body>
+<div class="jumbotron text-center">
+    <h1>TIENDA</h1>
+    <h3>Red de comercio basada en paso de mensajes</h3>
+    <h3 class="text-success">Capital actual</h3>
+    <h3 id="saldo"></h3>
+</div>
+
+<div class="container">
+    <h2 style="margin-bottom: 5%">Vendedores</h2>
+
+    <div style="margin-bottom: 5%" class="dropdown">
+        <select id="tienda" class="browser-default custom-select">
+            <option selected>Seleccione un vendedor</option>
+        </select>
+    </div>
+
+    <div class="container">
+        <table class="table" id="products_table">
+            <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Precio</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <hr style="width: 75%">
+
+    <h2 style="margin-bottom: 5%">Inventario</h2>
+
+    <div class="container">
+        <table class="table" id="inventario">
+            <thead>
+            <tr>
+                <th>Producto</th>
+                <th>Precio</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+    var miid;
+    var capital = 0;
+    var stock = [];
+    var total = 0;
+    window.onload = function() {
+        getUsers();
+
+        $('#tienda').on('change', function() {
+            getProductos();
+        });
+    };
+
+    function getUsers() {
+        var aux = '';
+        $.ajax({
+            type: 'GET',
+            url: 'http://localhost:3000/users',
+            jsonpCallback: 'jsonCallback',
+            dataType: 'jsonp',
+            success: function (response) {
+                var datos = '';
+                console.log(response);
+                $.each(response, function (i, item) {
+                    if (item.id === "shaker"){
+                        capital = item.capital;
+                        $('#saldo').empty();
+                        $('#saldo').append(capital);
+                        miid = item.id;
+                        cargarInventario();
+                    } else {
+                        aux = item.id;
+
+                        datos += '<option value="'+aux+'">' + aux + '</option>'
+                    }
+                });
+                $('#tienda').append(datos);
+            },
+            error: function (e) {
+                $("#divResult").html("WebSerivce unreachable");
+            }
+        });
+    }
+
+    function cargarInventario(){
+        URL = 'http://localhost:3000/users/' + miid + '/todos';
+        console.log("shaker: " + URL);
+        $.ajax({
+            type: 'GET',
+            url: URL,
+            jsonpCallback: 'jsonCallback',
+            dataType: 'jsonp',
+            success: function (response) {
+                var trHTML = '';
+                $('#inventario > tbody').empty();
+                $.each(response, function (i, item) {
+                    trHTML += '<tr><td>' + item.prod + '</td><td>' + item.valor + '</td></tr>';
+                });
+                $('#inventario tbody').append(trHTML);
+
+                $.each(response, function (i, item) {
+                    for (var j = 0; j < stock.length; j++) {
+                        if (item.id === stock[j].id) {
+                            stock.splice(j, 1);
+                        }
+                    }
+                });
+
+                console.log("response");
+                console.log(response);
+                console.log(stock);
+                total = 0;
+
+                $.each(stock, function (i, item) {
+                    total += item.valor;
+                });
+
+                if (total !== 0) {
+                    setTimeout(function(){
+                        updateCapital(total);
+                    }, 200);
+                    setTimeout(function(){
+                        getProductos();
+                    }, 400);
+                }
+                stock = [];
+                $.each(response, function (i, item) {
+                    stock.push(item);
+                });
+            },
+            complete: function() {
+                setTimeout(cargarInventario, 1000);
+            },
+            error: function (e) {
+                //$("#divResult").html("WebSerivce unreachable");
+            }
+        });
+    }
+
+    function updateCapital(total) {
+        URL = 'http://localhost:3000/users/' + miid;
+        capital += total;
+        var data = {
+            "id": miid,
+            "capital": capital
+        };
+        $.ajax({
+            type: 'PUT',
+            url: URL,
+            contentType: 'application/json',
+            data: JSON.stringify(data), // access in body
+        }).done(function () {
+            $('#saldo').empty();
+            $('#saldo').append(capital);
+            console.log('SUCCESS');
+        }).fail(function (msg) {
+            console.log('FAIL');
+        });
+    }
+
+    function getProductos() {
+        URL = 'http://localhost:3000/users/' + $('#tienda').val() + '/todos';
+        $.ajax({
+            type: 'GET',
+            url: URL,
+            jsonpCallback: 'jsonCallback',
+            dataType: 'jsonp',
+            success: function (response) {
+                var tablahtml = '';
+                $('#products_table > tbody').empty();
+                $.each(response, function (i, item) {
+                    tablahtml += '<tr><td>' + item.prod + '</td><td>' + item.valor + '</td>';
+                    id = item.id;
+                    nombre = '\'' + item.userId + '\'';
+                    tablahtml += '<td type="button" id="btnBuy" onclick="verificar('+id+','+nombre+')" class="btn-outline-primary btn buy">Buy</td></tr>';
+                });
+                $('#products_table tbody').append(tablahtml);
+            },
+            error: function (e) {
+                //$("#divResult").html("WebSerivce unreachable");
+            }
+        });
+    }
+
+    function verificar(id,userId) {
+        URL = 'http://localhost:3000/todos/' + id;
+        $.ajax({
+            type: 'GET',
+            url: URL,
+            jsonpCallback: 'jsonCallback',
+            dataType: 'jsonp',
+            success: function (response) {
+                console.log("response " + response.userId);
+                console.log("userid " + userId);
+                if (response.userId == userId) {
+                    comprar(id,response.prod,response.valor);
+                    setTimeout(function(){
+                        getProductos();
+                    }, 200);
+                    setTimeout(function(){
+                        updateCapital(-1 * response.valor);
+                    }, 400);
+                } else {
+                    alert("El producto elegido ya no esta disponible");
+                    getProductos();
+                }
+
+            },
+            error: function (e) {
+                $("#divResult").html("WebSerivce unreachable");
+            }
+        });
+    }
+
+    function comprar(id,prod,valor) {
+        URL = 'http://localhost:3000/todos/' + id;
+        let data = {
+            "id": id,
+            "prod": prod,
+            "valor": valor,
+            "userId": "shaker"
+        };
+        $.ajax({
+            type: 'PUT',
+            url: URL,
+            contentType: 'application/json',
+            data: JSON.stringify(data), // access in body
+        }).done(function () {
+            console.log('SUCCESS');
+        }).fail(function (msg) {
+            console.log('FAIL');
+        }).always(function (msg) {
+            console.log('ALWAYS');
+        });
+    }
+</script>
+<script src="js/jquery.js"></script>
+<script src="js/popper.min.js"></script>
+<script src="js/bootstrap.min.js"></script>
+</body>
+</html>

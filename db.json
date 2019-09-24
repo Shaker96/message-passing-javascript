@@ -1,0 +1,44 @@
+{
+  "users": [
+    {
+      "id": "shaker",
+      "capital": 400
+    },
+    {
+      "id": "rafael",
+      "capital": 500
+    }
+  ],
+  "todos": [
+    {
+      "id": 1,
+      "prod": "Prod 1",
+      "valor": 100,
+      "userId": "rafael"
+    },
+    {
+      "id": 2,
+      "prod": "Prod 2",
+      "valor": 100,
+      "userId": "shaker"
+    },
+    {
+      "id": 3,
+      "prod": "Prod 3",
+      "valor": 100,
+      "userId": "shaker"
+    },
+    {
+      "id": 4,
+      "prod": "Prod 4",
+      "valor": 100,
+      "userId": "rafael"
+    },
+    {
+      "id": 5,
+      "prod": "Prod 5",
+      "valor": 100,
+      "userId": "shaker"
+    }
+  ]
+}
